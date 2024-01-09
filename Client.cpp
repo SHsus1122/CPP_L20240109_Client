@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <WinSock2.h>
+#include <string>
 
 #pragma comment(lib, "ws2_32")
 
@@ -23,7 +24,6 @@ int main()
 	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	ServerSockAddr.sin_port = htons(30211);
 
-
 	SOCKET ServerSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	Result = connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
@@ -33,15 +33,98 @@ int main()
 		exit(-1);
 	}
 
+
+	/////////////////////////////////// [ 서버로부터 받음 ]
 	char RecvBuffer[1024] = { 0, };
 	int RecvByte = recv(ServerSocket, RecvBuffer, sizeof(RecvBuffer), 0);
 
-	cout << "Server Sent " << RecvBuffer << endl;
+	cout << "Server Sent : " << RecvBuffer << endl;
 
-	int SentByte = send(ServerSocket, RecvBuffer, (int)strlen(RecvBuffer), 0);
+	string Data = RecvBuffer;
+	size_t OperatorPosition = Data.find('+');
+	if (OperatorPosition == string::npos)
+	{
+		OperatorPosition = Data.find('-');
+		if (OperatorPosition == string::npos)
+		{
+			OperatorPosition = Data.find('*');
+			if (OperatorPosition == string::npos)
+			{
+				OperatorPosition = Data.find('/');
+				if (OperatorPosition == string::npos)
+				{
+					OperatorPosition = Data.find('%');
+				}
+			}
+		}
+	}
 
+	string FirstNumberString = Data.substr(0, OperatorPosition);
+	string SecondNumberString = Data.substr(OperatorPosition + 1,
+		Data.length() - OperatorPosition - 1);
+
+	int FirstNumber = stoi(FirstNumberString);
+	int SecondNumber = stoi(SecondNumberString);
+	int ResultNumber = 0;
+	OperatorPosition = Data.find('+');
+	if (OperatorPosition == string::npos)
+	{
+		OperatorPosition = Data.find('-');
+		if (OperatorPosition == string::npos)
+		{
+			OperatorPosition = Data.find('*');
+			if (OperatorPosition == string::npos)
+			{
+				OperatorPosition = Data.find('/');
+				if (OperatorPosition == string::npos)
+				{
+					OperatorPosition = Data.find('%');
+					ResultNumber = FirstNumber % SecondNumber;
+				}
+				else
+				{
+					ResultNumber = FirstNumber / SecondNumber;
+				}
+			}
+			else
+			{
+				ResultNumber = FirstNumber * SecondNumber;
+			}
+		}
+		else
+		{
+			ResultNumber = FirstNumber - SecondNumber;
+		}
+	}
+	else
+	{
+		ResultNumber = FirstNumber + SecondNumber;
+	}
+
+	char Buffer[1024] = { 0, };
+	//sprintf_s(Buffer, "%s, %s", FirstNumberString.c_str(), SecondNumberString.c_str());
+	sprintf_s(Buffer, 1024, "%d", ResultNumber);
+
+
+	/////////////////////////////////// [ 서버로 보냄 ]
+	/* 숫자 하나 한정 및 넘겨온 문자열이 1+4 같은 형태의 경우
+	* char FirstNumber = RecvBuffer[0] - 48;	// 0, 1, 2
+	* char SecondNumber = RecvBuffer[2] - 48;
+	* char ResultNum = FirstNumber + SecondNumber;
+	* 
+	* ResultNum += 48;							// 결과 : 3
+	* char Buffer[1024] = { 0, };
+	* Buffer[0] = ResultNum;
+	* Buffer[1] = '\0';
+	*/
+	//int Sum = atoi(RecvBuffer) * 5;
+	//strcat(LastBuffer, itoa(Sum, LastBuffer, 10));
+
+	int SentByte = send(ServerSocket, Buffer, (int)(strlen(Buffer) + 1), 0);
 	cout << "Send Data" << endl;
 
+
+	/////////////////////////////////// [ 연결 종료 ]
 	closesocket(ServerSocket);
 
 	WSACleanup();
